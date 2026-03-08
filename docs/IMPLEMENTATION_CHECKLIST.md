@@ -1,0 +1,136 @@
+# Local AI Trainer Implementation Checklist
+
+## Status Legend
+
+- `[x]` complete
+- `[~]` in progress / partially implemented
+- `[ ]` not started
+
+## Checklist
+
+- [x] Create repo structure: macOS app, Python worker package, docs, and shared config locations
+- [x] Create this checklist with a run log section
+- [x] Scaffold the SwiftUI macOS app with a main page, settings page, navigation, and app state container
+- [x] Scaffold the Python worker entrypoint and JSON job manifest contract between SwiftUI and Python
+- [x] Add prerequisite detection for Ollama, local daemon status, disk space, and Apple Silicon compatibility
+- [x] Add a curated supported-model registry with workflow type, Ollama tag, backend mapping, RAM requirement, and license label
+- [x] Build the Settings page to show environment health and pull curated Ollama models
+- [x] Build the Main page with model picker, folder picker, project name, presets, run button, progress area, and completion card
+- [x] Implement dataset validation for image folders and text folders
+- [x] Implement text preprocessing for `.txt`, `.md`, and direct `.jsonl`
+- [x] Implement Ollama integration for model discovery, pulls, import, and preview inference
+- [ ] Run the week-1 FLUX spike: prove `train -> package -> import into Ollama -> sample generate` on the target M4 Max hardware
+- [~] Implement the FLUX image training path with MFLUX and package the result into a local Ollama model tag
+- [~] Implement the MLX-LM text fine-tuning path and register the result in Ollama automatically
+- [x] Build the post-training preview panel: image generation for FLUX and chat preview for text models
+- [x] Persist job manifests, logs, output paths, and preview metadata under the app support directory
+- [x] Add cancellation, failure handling, retry messaging, and preserved logs for failed jobs
+- [ ] Package the app as a signed, notarized `.dmg` with bundled Python dependencies
+- [ ] Run end-to-end QA on the marketing-template / produce-image experiment
+- [ ] Validate the trained model inside the downstream Ollama-based app
+
+## Last Run
+
+- Date: 2026-03-07
+- Completed:
+  - Rewrote the README so it now describes the actual app, supported workflows, runtime split, repository layout, and current v1 scope instead of only the initial scaffold.
+  - Replaced the old checklist-style `PLAN.md` with a current product plan that documents the updated FLUX-direct / text-through-Ollama architecture.
+  - Updated `docs/ARCHITECTURE.md` so it no longer describes the obsolete experimental FLUX-to-Ollama packaging path.
+- Blockers:
+  - Full Xcode is not installed in this workspace, so signed `.app` / `.dmg` packaging is not yet executable here.
+- Next:
+  - Validate the updated text training flow end-to-end in the app with the installed `.venv`, including the Hugging Face token setting, the safer text preset path, fused-model Ollama packaging, and the improved copy-progress reporting.
+  - Validate an end-to-end FLUX train-plus-compare run now that image previews use the direct MFLUX runtime.
+  - Add downstream app validation once a trained model artifact is available.
+
+## Run Log
+
+- 2026-03-07:
+  - Added the initial repository implementation.
+  - Build verification passed with `swift build`.
+  - Worker verification passed for validation/preprocessing and persisted failure-state handling.
+- 2026-03-07:
+  - Installed `mflux` and `mlx-lm[train]` into `.venv`.
+  - Verified the app now prefers `.venv/bin/python3` and detects the installed backends.
+- 2026-03-07:
+  - Moved backend setup into the app so users do not need a terminal bootstrap step.
+  - Added automatic installation, retry, and progress visibility in Settings.
+- 2026-03-07:
+  - Confirmed `x/flux2-klein:4b` pulls were reaching Ollama even when the UI looked stuck.
+  - Replaced the terminal-like pull output with a clean progress bar backed by Ollama API updates.
+  - Hid terminal-style backend setup logs from the Settings UI.
+- 2026-03-07:
+  - Traced the uneditable text field to the app launching as `BackgroundOnly` under `swift run`, not to the field implementation itself.
+  - Added an embedded `Info.plist` and `scripts/run_dev_app.sh` so the app launches as a normal macOS `.app`.
+- 2026-03-07:
+  - Fixed the generated FLUX MFLUX config so `timestep_high` is valid for the chosen preset.
+  - Aligned FLUX LoRA target paths with the installed MFLUX FLUX.2 training docs.
+  - Removed preview image files from non-edit training dataset preparation.
+- 2026-03-07:
+  - Fixed the dev `.app` wrapper to recreate and re-sign the whole app bundle on each run.
+  - Eliminated the stale bundle-signature mismatch that caused launch crashes.
+- 2026-03-07:
+  - Added explicit FLUX training-asset readiness checks so the app no longer mistakes an Ollama runtime pull for a complete training install.
+  - Updated image installs to prepare MFLUX training weights and persist the resolved local snapshot path into training configs.
+- 2026-03-07:
+  - Fixed the training progress card to use an internal scroll area with a bounded height.
+  - Prevented long run logs from stretching the whole main page.
+- 2026-03-07:
+  - Changed preview generation to capture both before-training and after-training outputs for the same prompt.
+  - Added side-by-side comparison cards so trained-image previews show the baseline model next to the tuned result.
+- 2026-03-07:
+  - Fixed the image packaging step to search MFLUX timestamped output folders for checkpoint zips instead of only the base output path.
+  - Fixed manifest reloads by widening the Swift metadata model from string-only values to general JSON values.
+- 2026-03-07:
+  - Changed experimental FLUX packaging failures into adapter-preserving completions when Ollama rejects the adapter import step.
+  - Sanitized captured Ollama CLI errors so packaging messages no longer include terminal escape sequences.
+- 2026-03-07:
+  - Re-architected FLUX image runs to stop at a direct MFLUX LoRA artifact and removed the attempted Ollama packaging step from the image workflow.
+  - Split preview generation so FLUX comparisons use the Python worker with MFLUX and supported text-model comparisons continue to use Ollama.
+  - Added Phi3 to the curated text-model list that still uses Ollama `Modelfile` adapter import.
+- 2026-03-07:
+  - Fixed FLUX preview generation to suppress MFLUX progress output so the worker returns clean JSON to the app.
+  - Added a defensive Swift fallback decoder for preview responses that include extra non-JSON output.
+- 2026-03-07:
+  - Added a small chat-style JSONL dataset for validating the Mistral 7B instruct training path.
+  - Verified the new dataset passes the worker's text validation and preprocessing steps.
+- 2026-03-07:
+  - Added managed MLX text-model asset detection and preparation so text training can reuse local Hugging Face snapshots.
+  - Updated text installs to prepare both the Ollama runtime and the MLX training weights, and switched the worker to the non-deprecated `mlx_lm lora` command path.
+- 2026-03-07:
+  - Added a secure Hugging Face token setting to Backend Setup and passed the saved token to local worker commands as `HF_TOKEN`.
+  - Reworked text packaging to fuse MLX adapters into a full local model directory before importing that fused model into Ollama.
+- 2026-03-07:
+  - Fixed fused-text Ollama imports to copy tokenizer assets from the Hugging Face snapshot into the import directory before model creation.
+  - Verified the patched import path now creates a Mistral fine-tune that returns text responses through Ollama instead of corrupted byte-token output.
+- 2026-03-07:
+  - Fixed false "Ollama missing" app status when launching as a `.app` without the Homebrew PATH.
+  - Propagated the resolved Ollama binary path into worker processes so local training and packaging commands do not depend on shell PATH inheritance.
+- 2026-03-07:
+  - Fixed MLX text training on tiny validation splits by automatically reducing batch size to fit the prepared dataset.
+  - Verified the balanced Mistral validation dataset now builds a `batch-size 1` command instead of failing immediately on the first evaluation step.
+- 2026-03-07:
+  - Added a larger `mistral7b-instruct-expanded` dataset for produce-marketing text fine-tuning.
+  - Verified the worker accepts all 100 records with no warnings and preprocesses them into a 90/10 train-validation split.
+- 2026-03-07:
+  - Fixed MLX text quality runs aborting with Metal out-of-memory errors by switching the text presets to safer local-memory defaults and adding model-aware clamps for supported 7B to 9B text backends.
+  - Improved worker failure summaries so the app can surface backend causes like `Insufficient Memory` instead of only a negative exit code.
+  - Verified the revised Mistral quality path with a one-iteration local MLX smoke test that completed successfully on the target hardware profile.
+- 2026-03-07:
+  - Fixed long packaging steps appearing frozen by switching worker subprocess streaming from newline-only reads to chunked carriage-return-aware progress parsing.
+  - Normalized Ollama copy-progress lines and capped the visible in-app log size to keep the training screen responsive while preserving the complete worker log on disk.
+  - Verified the new progress parser with a simulated spinner stream and re-ran the worker and Swift builds successfully.
+- 2026-03-07:
+  - Traced degenerate text previews to an over-aggressive MLX fine-tuning recipe rather than an Ollama packaging failure by comparing direct MLX generation from the fused model against the untouched base snapshot.
+  - Replaced the shipped text presets with experimentally validated mild LoRA settings that keep Mistral produce-copy fine-tunes coherent on the target machine.
+  - Fixed custom model-tag collisions so multiple runs on the same day no longer overwrite one another in Ollama.
+- 2026-03-07:
+  - Fixed the chunked worker-log reader to support Python pipe handles without `read1()`.
+  - Re-verified the new progress-streaming path after the regression fix so training runs no longer fail immediately on worker startup.
+- 2026-03-07:
+  - Tightened repo hygiene before GitHub publication by ignoring generated runs, temporary import-test artifacts, and crash files.
+  - Removed local run history and large temporary fused-model test directories to free disk space.
+- 2026-03-07:
+  - Added the provided `Local_AI_Trainer.png` screenshot to the README for a current visual of the desktop UI.
+- 2026-03-07:
+  - Rewrote the README, plan, and architecture docs to match the current product direction: FLUX image training through direct MFLUX runtime and text fine-tuning through Hugging Face plus MLX-LM into Ollama.

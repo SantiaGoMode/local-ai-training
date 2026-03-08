@@ -1,0 +1,2 @@
+mflux
+mlx-lm[train]
