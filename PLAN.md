@@ -22,7 +22,7 @@ The current product plan is:
 
 This is the stable split that matches the backend tooling we validated.
 
-## V1 User Experience
+## V1 User Experience.
 
 - One main training page
 - One settings page
